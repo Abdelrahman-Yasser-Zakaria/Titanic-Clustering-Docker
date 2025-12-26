@@ -1,71 +1,119 @@
-# Titanic Data Analysis and Clustering
+# Titanic Clustering Pipeline
 
-This project performs data analysis and clustering on the Titanic dataset using a containerized environment. The steps include setting up a Docker container, creating Python scripts for data processing, exploratory data analysis, and visualization.
+## 📌 Project Overview
+This project implements a data processing and clustering pipeline for the Titanic dataset. It automates the stages of loading, preprocessing, exploratory data analysis (EDA), visualization, and machine learning (K-Means clustering). The pipeline is designed to be modular, with each stage handled by a specific Python script that chains into the next.
 
-## Dataset
+The system is containerized using Docker to ensure a consistent environment for execution.
 
-We use the Titanic dataset for this assignment. Download the dataset from [Kaggle](https://www.kaggle.com/c/titanic/data?select=train.csv).
+## 🏗 System Design
+The pipeline operates sequentially. Each script performs its task, saves the output to a file, and triggers the next script in the chain using `subprocess`.
 
-## Steps
+```mermaid
+graph TD
+    Start((Start)) --> Load[load.py]
+    Load -->|Reads| Input[train.csv]
+    Load -->|Writes| Loaded[loaded_data.csv]
+    Load -->|Calls| DPre[dpre.py]
 
-### 1. Create the Docker Environment
+    DPre -->|Reads| Loaded
+    DPre -->|Cleans & Transforms| Processed[res_dpre.csv]
+    DPre -->|Calls| EDA[eda.py]
 
-- **Base Image**: Use Ubuntu as the base image.
-- **Virtual Environment**: Create a virtual environment called `venv`.
-- **Install Libraries**: Install required libraries such as `numpy` and `pandas` in `venv`.
-- **Directory Structure**: 
-  - Create a directory `/home/doc-bd-al/` in the container.
-  - Copy the dataset to this directory.
-  - Set this directory as the working directory.
-- **Startup Command**: Open a bash shell upon container startup.
+    EDA -->|Reads| Processed
+    EDA -->|Generates| Stats[eda-in-1.txt, eda-in-2.txt, eda-in-3.txt]
+    EDA -->|Calls| Vis[vis.py]
 
-### 2. Build and Run the Docker Container
+    Vis -->|Reads| Processed
+    Vis -->|Generates| Plot[vis.png]
+    Vis -->|Calls| Model[model.py]
 
-- Build the Docker image:
-  ```bash
-  docker build -t big_data_assi1 .
-  ```
-- Run the Docker container:
-  ```bash
-  docker run -it big_data_assi1
-  ```
+    Model -->|Reads| Processed
+    Model -->|Generates| Clusters[k.txt]
+    Model --> End((End))
+```
 
-### 3. Python Scripts
+## 📂 Directory Structure
+```
+/
+├── Dockerfile          # Configuration for the Docker environment
+├── dpre.py             # Data preprocessing script
+├── eda.py              # Exploratory Data Analysis script
+├── final.sh            # Shell script to copy results from Docker container
+├── load.py             # Data loading entry point
+├── model.py            # K-Means clustering model script
+├── test.ipynb          # Jupyter notebook for testing/experimentation
+├── train.csv           # Input dataset
+├── vis.py              # Visualization script
+├── k.txt               # Output: Cluster counts (generated)
+├── res_dpre.csv        # Output: Preprocessed data (generated)
+├── service-result/     # Directory for collected results
+└── README.md           # Project documentation
+```
 
-The project includes several Python scripts, each performing a specific task:
+## 🛠 Technologies & Tools
+*   **Language:** Python 3
+*   **Libraries:**
+    *   `pandas` (Data manipulation)
+    *   `numpy` (Numerical operations)
+    *   `scikit-learn` (Machine Learning: K-Means, Preprocessing)
+    *   `seaborn` & `matplotlib` (Visualization)
+    *   `scipy` (Scientific computing)
+*   **Containerization:** Docker
+*   **Scripting:** Bash
 
-- **`load.py`**:
-  - Loads the dataset and creates a new dataset `load_data.csv`.
-  - Passes `load_data.csv` to `dpre.py` using the `subprocess` library.
+## 🚀 Getting Started
 
-- **`dpre.py`**:
-  - Processes `load_data.csv` by cleaning, transforming, and discretizing the dataset.
-  - Creates a new dataset `res_dpre.csv` and passes it to `eda.py`.
+### Prerequisites
+*   Python 3.x (for local run)
+*   Docker (for containerized run)
 
-- **`eda.py`**:
-  - Performs exploratory data analysis (EDA) on `res_dpre.csv`.
-  - Generates summary statistics, a correlation matrix, and distributions for specific columns, saving each as a text file.
-  - Calls `vis.py` for further processing.
+### 📥 1. Clone the Repository
+```bash
+git clone https://github.com/Abdelrahman-Yasser-Zakaria/Titanic-Clustering-Docker.git
+cd Titanic-Clustering-Docker
+```
 
-- **`vis.py`**:
-  - Creates visualizations for the dataset, specifically a pair plot of features, saving it as `vis.png`.
-  - Passes the file to `model.py` for further processing.
+### 💻 2. Running Locally
 
-- **`model.py`**:
-  - Applies K-means clustering on the dataset.
-  - Drops specific columns and assigns clusters to the data (3 clusters).
-  - Saves the cluster counts in a text file `k.txt`.
+1.  **Install Dependencies:**
+    It is recommended to use a virtual environment.
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
+    pip install pandas numpy seaborn matplotlib scikit-learn scipy
+    ```
 
-### 4. Run Python Scripts and Final Script
+2.  **Run the Pipeline:**
+    Start the process by running the load script with your dataset.
+    ```bash
+    python3 load.py train.csv
+    ```
 
-- Execute the Python scripts in the container as per the dependency order described above.
-- Run `final.sh` to copy output files from the container to the local machine in `bd-a1/service-result/` and stop the container.
+3.  **Check Results:**
+    Output files (`res_dpre.csv`, `eda-in-*.txt`, `vis.png`, `k.txt`) will be generated in the current directory.
 
-## Output
+### 🐳 3. Running with Docker
 
-The final outputs include:
+1.  **Build the Docker Image:**
+    ```bash
+    docker build -t titanic-pipeline .
+    ```
 
-- Processed datasets
-- Summary statistics and correlation matrix text files
-- Visualization image (`vis.png`)
-- Cluster count text file (`k.txt`)
+2.  **Run the Container:**
+    Since the Dockerfile copies `train.csv` but not the scripts, the best way to run this is by mounting your current directory to the container. This allows the container to see your scripts and for you to see the generated results immediately.
+    ```bash
+    docker run -it -v $(pwd):/home/doc-bd-a1/ titanic-pipeline /bin/bash
+    ```
+
+3.  **Execute the Pipeline inside the container:**
+    ```bash
+    # Inside the container
+    python3 load.py train.csv
+    exit
+    ```
+
+4.  **Extract Results (Alternative Method):**
+    If you ran the container *without* mounting volumes (not recommended with current Dockerfile), the results are trapped inside. You can use `final.sh` to extract them, but you must update the container ID in the script first.
+    1.  Get the container ID: `docker ps -a`
+    2.  Update `final.sh` with the new ID.
+    3.  Run: `bash final.sh`
